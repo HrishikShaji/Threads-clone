@@ -2,13 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer components {
-  .leftsidebar {
-    @apply sticky left-0 top-0 z-20 flex h-screen w-fit flex-col justify-between overflow-auto border-r border-r-teal-500 bg-neutral-700 pb-5 pt-28 max-md:hidden;
-  }
-}
-
 @layer utilities {
+  .css-invert {
+    @apply invert-[50%] brightness-200;
+  }
+
   .custom-scrollbar::-webkit-scrollbar {
     width: 3px;
     height: 3px;
