@@ -19,6 +19,8 @@ import Image from "next/image";
 import { Textarea } from "../ui/textarea";
 import { isBase64Image } from "@/lib/utils";
 import { useUploadThing } from "@/lib/uploadthing";
+import { usePathname, useRouter } from "next/navigation";
+import { updateUser } from "@/lib/actions/user.actions";
 
 interface Props {
   user: {
@@ -35,6 +37,8 @@ interface Props {
 const AccountProfile = ({ user, btnTitle }: Props) => {
   const [files, setFiles] = useState<File[]>([]);
   const { startUpload } = useUploadThing("media");
+  const router = useRouter();
+  const pathname = usePathname();
   const form = useForm({
     resolver: zodResolver(UserValidation),
     defaultValues: {
@@ -44,6 +48,39 @@ const AccountProfile = ({ user, btnTitle }: Props) => {
       bio: user?.bio || "",
     },
   });
+
+  const onSubmit = async (values: z.infer<typeof UserValidation>) => {
+    console.log("this rn");
+
+    const blob = values.profile_photo;
+
+    const hasImageChanged = isBase64Image(blob);
+
+    if (hasImageChanged) {
+      const imgRes = await startUpload(files);
+
+      if (imgRes && imgRes[0].fileUrl) {
+        values.profile_photo = imgRes[0].fileUrl;
+      }
+    }
+
+    await updateUser({
+      username: values.username,
+      name: values.name,
+      bio: values.bio,
+      image: values.profile_photo,
+      userId: user.id,
+      path: pathname,
+    });
+
+    console.log(values);
+
+    if (pathname === "/profile/edit") {
+      router.back();
+    } else {
+      router.push("/");
+    }
+  };
 
   const handleImage = (
     e: ChangeEvent<HTMLInputElement>,
@@ -67,22 +104,6 @@ const AccountProfile = ({ user, btnTitle }: Props) => {
 
       fileReader.readAsDataURL(file);
     }
-  };
-
-  const onSubmit = async (values: z.infer<typeof UserValidation>) => {
-    const blob = values.profile_photo;
-
-    const hasImageChanged = isBase64Image(blob);
-
-    if (hasImageChanged) {
-      const imgRes = await startUpload(files);
-
-      if (imgRes && imgRes[0].fileUrl) {
-        values.profile_photo = imgRes[0].fileUrl;
-      }
-    }
-
-    console.log(values);
   };
 
   return (
@@ -142,6 +163,7 @@ const AccountProfile = ({ user, btnTitle }: Props) => {
                 <Input
                   type="text"
                   className="focus-visible:ring-0 focus-visible:ring-transparent focus-visible:ring-offset-0"
+                  {...field}
                 />
               </FormControl>
 
@@ -161,6 +183,7 @@ const AccountProfile = ({ user, btnTitle }: Props) => {
                 <Input
                   type="text"
                   className="focus-visible:ring-0 focus-visible:ring-transparent focus-visible:ring-offset-0"
+                  {...field}
                 />
               </FormControl>
 
@@ -180,6 +203,7 @@ const AccountProfile = ({ user, btnTitle }: Props) => {
                 <Textarea
                   rows={10}
                   className="focus-visible:ring-0 focus-visible:ring-transparent focus-visible:ring-offset-0"
+                  {...field}
                 />
               </FormControl>
 
