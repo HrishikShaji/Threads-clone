@@ -25,18 +25,10 @@ import { ThreadValidation } from "@/lib/validations/thread";
 import { createThread } from "@/lib/actions/thread.actions";
 
 interface Props {
-  user: {
-    id: string;
-    objectId: string;
-    username: string;
-    name: string;
-    bio: string;
-    image: string;
-  };
-  btnTitle: string;
+  userId: string;
 }
 
-const PostThread = ({ userId }: { userId: string }) => {
+const PostThread = ({ userId }: Props) => {
   const router = useRouter();
   const pathname = usePathname();
   const form = useForm({
@@ -54,6 +46,7 @@ const PostThread = ({ userId }: { userId: string }) => {
       communityId: null,
       path: pathname,
     });
+    console.log(userId);
 
     router.push("/");
   };

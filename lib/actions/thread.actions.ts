@@ -21,12 +21,14 @@ export async function createThread({
 }: Params) {
   try {
     connectToDB();
+    console.log(text, author, path);
 
     const createdThread = await Thread.create({
       text,
       author,
-      community: null,
     });
+
+    console.log("this ran", createdThread);
 
     await User.findByIdAndUpdate(author, {
       $push: { threads: createdThread._id },
@@ -66,4 +68,41 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
   const isNext = totalPostsCount > skipAmount + posts.length;
 
   return { posts, isNext };
+}
+
+export async function fetchThreadById(id: string) {
+  connectToDB();
+
+  try {
+    const thread = await Thread.findById(id)
+      .populate({
+        path: "author",
+        model: User,
+        select: "_id id name image",
+      })
+      .populate({
+        path: "children",
+        populate: [
+          {
+            path: "author",
+            model: User,
+            select: "_id id name parentId image",
+          },
+          {
+            path: "children",
+            model: Thread,
+            populate: {
+              path: "author",
+              model: User,
+              select: "_id id name parentId image",
+            },
+          },
+        ],
+      })
+      .exec();
+
+    return thread;
+  } catch (error: any) {
+    throw new Error(`Error fetching Thread:${error.message}`);
+  }
 }
