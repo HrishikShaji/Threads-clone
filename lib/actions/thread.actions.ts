@@ -5,40 +5,7 @@ import Thread from "../models/thread.model";
 import User from "../models/user.model";
 import { connectToDB } from "../mongoose";
 import page from "@/app/(auth)/onboarding/page";
-
-interface Params {
-  text: string;
-  author: string;
-  communityId: string | null;
-  path: string;
-}
-
-export async function createThread({
-  text,
-  author,
-  communityId,
-  path,
-}: Params) {
-  try {
-    connectToDB();
-    console.log(text, author, path);
-
-    const createdThread = await Thread.create({
-      text,
-      author,
-    });
-
-    console.log("this ran", createdThread);
-
-    await User.findByIdAndUpdate(author, {
-      $push: { threads: createdThread._id },
-    });
-
-    revalidatePath(path);
-  } catch (error: any) {
-    throw new Error(`Error creating thread :${error.message}`);
-  }
-}
+import Community from "../models/community.model";
 
 export async function fetchPosts(pageNumber = 1, pageSize = 20) {
   connectToDB();
@@ -50,6 +17,7 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
     .skip(skipAmount)
     .limit(pageSize)
     .populate({ path: "author", model: User })
+    .populate({ path: "community", model: Community })
     .populate({
       path: "children",
       populate: {
@@ -68,6 +36,85 @@ export async function fetchPosts(pageNumber = 1, pageSize = 20) {
   const isNext = totalPostsCount > skipAmount + posts.length;
 
   return { posts, isNext };
+}
+
+interface Params {
+  text: string;
+  author: string;
+  communityId: string | null;
+  path: string;
+}
+
+export async function createThread({
+  text,
+  author,
+  communityId,
+  path,
+}: Params) {
+  try {
+    connectToDB();
+    console.log(text, author, path);
+
+    const communityIdObject = await Community.findOne(
+      { id: communityId },
+      { _id: 1 }
+    );
+
+    const createdThread = await Thread.create({
+      text,
+      author,
+      community: communityIdObject,
+    });
+
+    console.log("this ran", createdThread);
+
+    await User.findByIdAndUpdate(author, {
+      $push: { threads: createdThread._id },
+    });
+
+    if (communityIdObject) {
+      await Community.findByIdAndUpdate(communityIdObject, {
+        $push: { threads: createdThread._id },
+      });
+    }
+
+    revalidatePath(path);
+  } catch (error: any) {
+    throw new Error(`Error creating thread :${error.message}`);
+  }
+}
+
+async function fetchAllChildThreads(threadId: string): Promise<any[]> {
+  const childThreads = await Thread.find({ parentId: threadId });
+
+  const descendantThreads = [];
+
+  for (const childThread of childThreads) {
+    const descendants = await fetchAllChildThreads(childThread._id);
+    descendantThreads.push(childThread, ...descendants);
+  }
+  return descendantThreads;
+}
+
+export async function deleteThread(id: string, path: string): Promise<void> {
+  try {
+    connectToDB();
+
+    const mainThread = await Thread.findById(id).populate("author community");
+
+    if (!mainThread) {
+      throw new Error("Thread not found");
+    }
+
+    const descendantThreads = await fetchAllChildThreads(id);
+
+    const descendantThreadIds = [
+      id,
+      ...descendantThreads.map((thread) => thread._id),
+    ];
+
+    const uniqueAuthorIds = new Set([]);
+  } catch (error: any) {}
 }
 
 export async function fetchThreadById(id: string) {
